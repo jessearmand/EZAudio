@@ -142,32 +142,40 @@ static OSStatus inputCallback(void                          *inRefCon,
   return self;
 }
 
+-(void)initMicrophone {
+  // Clear the float buffer
+  floatBuffers = NULL;
+  // We're not fetching anything yet
+  _isConfigured = NO;
+  _isFetching   = NO;
+  if( !_isConfigured ){
+    // Create the input audio graph
+    [self _createInputUnit];
+    // We're configured meow
+    _isConfigured = YES;
+  }
+}
+
 -(EZMicrophone *)initWithMicrophoneDelegate:(id<EZMicrophoneDelegate>)microphoneDelegate {
   self = [super init];
   if(self){
     self.microphoneDelegate = microphoneDelegate;
-    // Clear the float buffer
-    floatBuffers = NULL;
-    // We're not fetching anything yet
-    _isConfigured = NO;
-    _isFetching   = NO;
-    if( !_isConfigured ){
-      // Create the input audio graph
-      [self _createInputUnit];
-      // We're configured meow
-      _isConfigured = YES;
-    }
+    [self initMicrophone];
   }
   return self;
 }
 
 -(EZMicrophone *)initWithMicrophoneDelegate:(id<EZMicrophoneDelegate>)microphoneDelegate
             withAudioStreamBasicDescription:(AudioStreamBasicDescription)audioStreamBasicDescription {
-  self = [self initWithMicrophoneDelegate:microphoneDelegate];
-  if(self){
+  self = [super init];
+  if (self) {
     _customASBD  = YES;
     streamFormat = audioStreamBasicDescription;
+    self.microphoneDelegate = microphoneDelegate;
+
+    [self initMicrophone];
   }
+
   return self;
 }
 
@@ -300,9 +308,13 @@ static OSStatus inputCallback(void                          *inRefCon,
   #elif TARGET_OS_MAC
     [self _configureDefaultDevice];
   #endif
-  
+
   // Configure device and pull hardware specific sampling rate (default = 44.1 kHz)
-  _deviceSampleRate = [self _configureDeviceSampleRateWithDefault:44100.0];
+  if (_customASBD) {
+    _deviceSampleRate = streamFormat.mSampleRate;
+  } else {
+    _deviceSampleRate = [self _configureDeviceSampleRateWithDefault:44100.0];      
+  }
   
   // Configure device and pull hardware specific buffer duration (default = 0.0232)
   _deviceBufferDuration = [self _configureDeviceBufferDurationWithDefault:0.0232];
